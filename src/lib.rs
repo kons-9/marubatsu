@@ -1,16 +1,19 @@
 pub mod agent;
 pub mod environment;
 
-use proconio::input;
+pub use agent::AgentTrait;
 
 pub struct Runner {
     env: environment::Environment,
 }
 
 impl Runner {
-    pub fn new() -> Self {
+    pub fn new(
+        agent1: Box<dyn AgentTrait>,
+        agent2: Box<dyn AgentTrait>,
+    ) ->Self {
         Self {
-            env: environment::Environment::new(),
+            env: environment::Environment::new(agent1, agent2),
         }
     }
 
@@ -18,18 +21,9 @@ impl Runner {
         while !self.env.is_done() {
             println!("現在の盤面");
             println!("{}", self.env);
-            println!("次は{:?}の番です", self.env.current_agent());
-            println!("x yを入力してください");
-            input! {
-                x: usize,
-                y: usize,
-            }
-            if x >= 3 || y >= 3 {
-                println!("xとyは0から2の間で指定してください");
-                continue;
-            }
+            println!("次は{:?}の番です", self.env.current_agent_type());
 
-            let res = self.env.next(x, y);
+            let res = self.env.next();
             if let Err(e) = res {
                 println!("{}", e);
                 continue;
