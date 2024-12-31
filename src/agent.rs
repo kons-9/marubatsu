@@ -31,8 +31,8 @@ pub trait AgentTrait {
 }
 
 pub struct HumanAgent {
-    pub agent_type: AgentType,
-} 
+    agent_type: AgentType,
+}
 
 impl HumanAgent {
     pub fn new(agent_type: AgentType) -> Self {
@@ -48,10 +48,6 @@ impl AgentTrait for HumanAgent {
     }
 
     fn next(&self, _: &Board) -> (usize, usize) {
-        println!(
-            "次は{:?}の番です",
-            self.agent_type
-        );
         loop {
             println!("x yを入力してください");
             input! {
@@ -65,11 +61,10 @@ impl AgentTrait for HumanAgent {
             return (x, y);
         }
     }
-
 }
 
 pub struct RandomAgent {
-    pub agent_type: AgentType,
+    agent_type: AgentType,
 }
 
 impl RandomAgent {
@@ -87,10 +82,35 @@ impl AgentTrait for RandomAgent {
         loop {
             let x = rand::random::<usize>() % 3;
             let y = rand::random::<usize>() % 3;
-            if board.get(x,y) == CellState::Empty {
+            if board.get(x, y) == CellState::Empty {
                 return (x, y);
             }
         }
     }
 }
 
+pub struct AIAgent {
+    agent_type: AgentType,
+}
+
+impl AIAgent {
+    pub fn new(agent_type: AgentType) -> Self {
+        Self { agent_type }
+    }
+}
+
+impl AgentTrait for AIAgent {
+    fn agent_type(&self) -> AgentType {
+        self.agent_type
+    }
+
+    fn next(&self, board: &Board) -> (usize, usize) {
+        loop {
+            let x = rand::random::<usize>() % 3;
+            let y = rand::random::<usize>() % 3;
+            if board.get(x, y) == CellState::Empty {
+                return (x, y);
+            }
+        }
+    }
+}
