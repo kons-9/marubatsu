@@ -10,13 +10,16 @@ pub struct Environment {
 // 3 * 3 の盤面を表す
 #[derive(Clone, PartialEq, Debug)]
 struct Board {
-    cells: [[Cell; 3]; 3],
+    cells: [[CellState; 3]; 3],
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-struct Cell {
-    agent: Option<Agent>,
-    counter: u8,
+enum CellState {
+    Empty,
+    Maru(u8),
+    Batsu(u8),
+    MaruAfterImage,
+    BatsuAfterImage,
 }
 
 impl Environment {
@@ -30,12 +33,12 @@ impl Environment {
     }
 
     pub fn next(&mut self, x: usize, y: usize) -> Result<()> {
-        if self.board.cells[y][x].agent.is_some() {
+        if self.board.cells[y][x] != CellState::Empty {
             return Err(anyhow::anyhow!("すでに置かれています"));
         }
         self.board.put(x, y, self.curent_agent);
         self.curent_agent = self.curent_agent.next();
-        self.board.update();
+        self.board.update(self.curent_agent);
         Ok(())
     }
 
@@ -57,10 +60,12 @@ impl std::fmt::Display for Environment {
         for row in self.board.cells.iter() {
             write!(f, "|")?;
             for cell in row.iter() {
-                match cell.agent {
-                    Some(Agent::MARU) => write!(f, "○")?,
-                    Some(Agent::BATSU) => write!(f, "×")?,
-                    None => write!(f, " ")?,
+                match cell {
+                    CellState::Empty => write!(f, " ")?,
+                    CellState::Maru(_) => write!(f, "o")?,
+                    CellState::Batsu(_) => write!(f, "x")?,
+                    CellState::MaruAfterImage => write!(f, "O")?,
+                    CellState::BatsuAfterImage => write!(f, "X")?,
                 }
             }
             write!(f, "|")?;
@@ -74,18 +79,21 @@ impl std::fmt::Display for Environment {
 impl Board {
     fn new() -> Self {
         Self {
-            cells: [[Cell::new(); 3]; 3],
+            cells: [[CellState::new(); 3]; 3],
         }
     }
 
     fn put(&mut self, x: usize, y: usize, agent: Agent) {
-        self.cells[y][x].agent = Some(agent);
+        match agent {
+            Agent::MARU => self.cells[y][x] = CellState::Maru(0),
+            Agent::BATSU => self.cells[y][x] = CellState::Batsu(0),
+        }
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, current_agent: Agent) {
         for row in self.cells.iter_mut() {
             for cell in row.iter_mut() {
-                cell.update();
+                cell.update(current_agent);
             }
         }
     }
@@ -94,20 +102,20 @@ impl Board {
         // check maru batsu
         // check horizontal
         for row in self.cells.iter() {
-            if row.iter().all(|cell| cell.agent == Some(Agent::MARU)) {
+            if row.iter().all(|cell| cell.is_valid_maru()) {
                 return Some(Agent::MARU);
             }
-            if row.iter().all(|cell| cell.agent == Some(Agent::BATSU)) {
+            if row.iter().all(|cell| cell.is_valid_batsu()) {
                 return Some(Agent::BATSU);
             }
         }
 
         // check vertical
         for x in 0..3 {
-            if (0..3).all(|y| self.cells[y][x].agent == Some(Agent::MARU)) {
+            if (0..3).all(|y| self.cells[y][x].is_valid_maru()) {
                 return Some(Agent::MARU);
             }
-            if (0..3).all(|y| self.cells[y][x].agent == Some(Agent::BATSU)) {
+            if (0..3).all(|y| self.cells[y][x].is_valid_batsu()) {
                 return Some(Agent::BATSU);
             }
         }
@@ -115,10 +123,16 @@ impl Board {
         // check diagonal
         let diagonal = [[(0, 0), (1, 1), (2, 2)], [(0, 2), (1, 1), (2, 0)]];
         for diagonal in diagonal.iter() {
-            if diagonal.iter().all(|(x, y)| self.cells[*y][*x].agent == Some(Agent::MARU)) {
+            if diagonal
+                .iter()
+                .all(|(x, y)| self.cells[*y][*x].is_valid_maru())
+            {
                 return Some(Agent::MARU);
             }
-            if diagonal.iter().all(|(x, y)| self.cells[*y][*x].agent == Some(Agent::BATSU)) {
+            if diagonal
+                .iter()
+                .all(|(x, y)| self.cells[*y][*x].is_valid_batsu())
+            {
                 return Some(Agent::BATSU);
             }
         }
@@ -126,23 +140,47 @@ impl Board {
     }
 }
 
-impl Cell {
-    const MAX_COUNTER: u8 = 7;
+impl CellState {
+    const MAX_COUNTER: u8 = 3;
 
     fn new() -> Self {
-        Self {
-            agent: None,
-            counter: 0,
+        Self::Empty
+    }
+
+    fn update(&mut self, current_agent: Agent) {
+        match self {
+            Self::Maru(counter) => {
+                if current_agent == Agent::MARU {
+                    *counter += 1;
+                    if *counter == Self::MAX_COUNTER {
+                        *self = Self::MaruAfterImage;
+                    }
+                }
+            }
+            Self::Batsu(counter) => {
+                if current_agent == Agent::BATSU {
+                    *counter += 1;
+                    if *counter == Self::MAX_COUNTER {
+                        *self = Self::BatsuAfterImage;
+                    }
+                }
+            }
+            _ => {
+                *self = Self::Empty;
+            }
         }
     }
-    fn update(&mut self) {
-        match self.agent {
-            Some(_) => self.counter += 1,
-            None => self.counter = 0,
+
+    fn is_valid_maru(&self) -> bool {
+        match self {
+            Self::Maru(_) => true,
+            _ => false,
         }
-        if self.counter == Self::MAX_COUNTER {
-            self.agent = None;
-            self.counter = 0;
+    }
+    fn is_valid_batsu(&self) -> bool {
+        match self {
+            Self::Batsu(_) => true,
+            _ => false,
         }
     }
 }

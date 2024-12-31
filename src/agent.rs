@@ -12,3 +12,12 @@ impl Agent {
         }
     }
 }
+
+impl std::fmt::Display for Agent {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::MARU => write!(f, "○"),
+            Self::BATSU => write!(f, "×"),
+        }
+    }
+}
