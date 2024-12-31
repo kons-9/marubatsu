@@ -141,7 +141,7 @@ impl Board {
 }
 
 impl CellState {
-    const MAX_COUNTER: u8 = 3;
+    const DISABLED_TIME: u8 = 3;
 
     fn new() -> Self {
         Self::Empty
@@ -152,7 +152,7 @@ impl CellState {
             Self::Maru(counter) => {
                 if current_agent == Agent::MARU {
                     *counter += 1;
-                    if *counter == Self::MAX_COUNTER {
+                    if *counter == Self::DISABLED_TIME {
                         *self = Self::MaruAfterImage;
                     }
                 }
@@ -160,7 +160,7 @@ impl CellState {
             Self::Batsu(counter) => {
                 if current_agent == Agent::BATSU {
                     *counter += 1;
-                    if *counter == Self::MAX_COUNTER {
+                    if *counter == Self::DISABLED_TIME {
                         *self = Self::BatsuAfterImage;
                     }
                 }
