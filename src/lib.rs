@@ -8,10 +8,7 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(
-        agent1: Box<dyn AgentTrait>,
-        agent2: Box<dyn AgentTrait>,
-    ) ->Self {
+    pub fn new(agent1: Box<dyn AgentTrait>, agent2: Box<dyn AgentTrait>) -> Self {
         Self {
             env: environment::Environment::new(agent1, agent2),
         }
@@ -25,7 +22,8 @@ impl Runner {
 
             let res = self.env.next();
             if let Err(e) = res {
-                println!("{}", e);
+                println!("Error: {}", e);
+                println!("tips: helpでヘルプを表示します");
                 continue;
             }
         }

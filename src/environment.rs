@@ -1,11 +1,15 @@
-use crate::agent::AgentType;
 use crate::agent::AgentTrait;
+use crate::agent::AgentType;
+use crate::agent::Command;
 use anyhow::Result;
+
+const HISTORY_SIZE: usize = 9;
 
 pub struct Environment {
     board: Board,
     agents: [Box<dyn AgentTrait>; 2],
     curent_agent_index: usize,
+    history: Vec<Board>,
 }
 
 // 3 * 3 の盤面を表す
@@ -24,30 +28,58 @@ pub(crate) enum CellState {
 }
 
 impl Environment {
-    pub fn new(
-        agent1: Box<dyn AgentTrait>,
-        agent2: Box<dyn AgentTrait>,
-    ) -> Self {
+    pub fn new(agent1: Box<dyn AgentTrait>, agent2: Box<dyn AgentTrait>) -> Self {
         let board = Board::new();
         if agent1.agent_type() == agent2.agent_type() {
             panic!("agent1とagent2は異なるagent_typeを持つ必要があります");
         }
+        let history: Vec<Board> = Vec::with_capacity(HISTORY_SIZE);
         Self {
             board,
             agents: [agent1, agent2],
             curent_agent_index: 0,
+            history,
         }
     }
 
     pub fn next(&mut self) -> Result<()> {
         let current_agent = &self.agents[self.curent_agent_index];
-        let (x, y) = current_agent.next(&self.board);
+        let (x, y) = match current_agent.next(&self.board) {
+            Command::Next(x, y) => (x, y),
+            Command::Prev => {
+                if self.history.is_empty() {
+                    return Err(anyhow::anyhow!("初期状態です"));
+                }
+                self.board = self.history.pop().unwrap();
+                self.curent_agent_index = 1 - self.curent_agent_index;
+                return Ok(());
+            }
+            Command::Exit => {
+                println!("強制終了");
+                std::process::exit(0);
+            }
+            Command::Help => {
+                println!("-----------------------------");
+                println!("--- command line document ---");
+                println!("-----------------------------");
+                println!("  next x y: 次の手を指定する");
+                println!("  x y: next x yの省略形");
+                println!("  prev: 1手戻る");
+                println!("  exit: ゲームを終了する");
+                println!("  help: ヘルプを表示する");
+                println!("-----------------------------");
+                return Ok(());
+            }
+        };
         if self.board.cells[y][x] != CellState::Empty {
             return Err(anyhow::anyhow!("すでに置かれています"));
         }
-        self.board.put(x, y, self.agents[self.curent_agent_index].agent_type());
+        self.history.push(self.board.clone());
+        self.board
+            .put(x, y, self.agents[self.curent_agent_index].agent_type());
         self.curent_agent_index = 1 - self.curent_agent_index;
-        self.board.update(self.agents[self.curent_agent_index].agent_type());
+        self.board
+            .update(self.agents[self.curent_agent_index].agent_type());
         Ok(())
     }
 
@@ -65,9 +97,10 @@ impl Environment {
 
 impl std::fmt::Display for Environment {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "+---+")?;
-        for row in self.board.cells.iter() {
-            write!(f, "|")?;
+        writeln!(f, "  012x")?;
+        writeln!(f, " +---+ +---+")?;
+        for (i, row) in self.board.cells.iter().enumerate() {
+            write!(f, "{}|", i)?;
             for cell in row.iter() {
                 match cell {
                     CellState::Empty => write!(f, " ")?,
@@ -77,10 +110,21 @@ impl std::fmt::Display for Environment {
                     CellState::BatsuAfterImage => write!(f, "X")?,
                 }
             }
+            write!(f, "| |")?;
+            for cell in row.iter() {
+                match cell {
+                    CellState::Empty => write!(f, " ")?,
+                    CellState::Maru(cnt) => write!(f, "{}", cnt)?,
+                    CellState::Batsu(cnt) => write!(f, "{}", cnt)?,
+                    CellState::MaruAfterImage => write!(f, "3")?,
+                    CellState::BatsuAfterImage => write!(f, "3")?,
+                }
+            }
             write!(f, "|")?;
             writeln!(f)?;
         }
-        writeln!(f, "+---+")?;
+        writeln!(f, "y+---+ +---+")?;
+
         Ok(())
     }
 }
